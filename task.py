@@ -2,6 +2,7 @@ import subprocess
 import re
 import time
 import logging
+import pexpect
 logger1 = logging.getLogger("__task__")
 
 from abc import ABCMeta, abstractclassmethod
@@ -45,18 +46,42 @@ class Ping(Task):
 
 
 class Vpn(Task):
-    def __init__(self, ip_ep, username, password, site_id='', description=''):
+    def __init__(self, vpn_gw, username='SSO-USR-MON', password='YP64W4p2', site_id='', description=''):
         super().__init__(site_id, description)
-        self._ip_ep = ip_ep
+        self._vpn_gw = vpn_gw
         self._username = username
         self._password = password
+        self._ip_ep = ip_ep
 
     def run(self):
         try:
             before = time.clock()
-            cmd_output = subprocess.run("startct --mode console --name testprofile --server {0} --realm 'nomad' "
-                                        "--username {1} --password {2}".format(self._ip_ep, self._username, self._password),
-                                        shell=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+
+            startct = pexpect.spawn('startct -s ' + self._vpn_gw + ' -r nomad, timeout=10')
+            startct.timeout = 10
+            startct.expect('Username:')
+            startct.sendline(self._username)
+
+            startct.expect('Password:')
+            startct.sendline(self._password)
+
+            startct.expect('Enter')
+            startct.sendline('1')
+            startct.expect('CONNECT')
+
+            startct.sendline('status')
+            startct.expect('Connected')
+
+            after = time.clock()
+
+            yield after - before
+
+
+
+
+
+            startct.sendline('quit')
+
 
             after = time.clock()
             return after - before
