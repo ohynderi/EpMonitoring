@@ -46,7 +46,7 @@ class Ping(Task):
 
 
 class Vpn(Task):
-    def __init__(self, vpn_gw, username='SSO-USR-MON', password='YP64W4p2', site_id='', description=''):
+    def __init__(self, vpn_gw, username, password, site_id='', description=''):
         super().__init__(site_id, description)
         self._vpn_gw = vpn_gw
         self._username = username
