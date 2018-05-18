@@ -1,23 +1,172 @@
-from task import TaskGen
+from abc import ABCMeta, abstractclassmethod
+import subprocess
+import re
 import time
+import pexpect
 import csv
 import logging
 import os.path
 logger1 = logging.getLogger("__main__")
 
 
+def ping_task(ip_ep):
+    cmd_output = subprocess.run(["ping", ip_ep, "-c", "5"], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+
+    if re.search('avg.*', cmd_output.stdout.decode('utf-8')):
+        return re.search('avg.*', cmd_output.stdout.decode('utf-8')).group().split('=')[1].split('/')[1]
+
+    else:
+        return 'TIMEOUT'
+
+
+class Scenario(metaclass=ABCMeta):
+    def __init__(self, description=''):
+        self._description = description
+
+
+    @abstractclassmethod
+    def run(self):
+        pass
+
+
+class PingScenario(Scenario):
+    def __init__(self, description, ip_ep):
+        super().__init__(description)
+        self._ip_ep = ip_ep
+
+    def run(self):
+        try:
+            return ping_task(self._ip_ep)
+
+        except Exception as e:
+            logger1.critical('Something went bad: {0}'.format(str(e)))
+            return 'ERROR'
+
+
+class VpnScenario(Scenario):
+    def __init__(self, description, arg_dict):
+        super().__init__(description)
+        self._ext_ep = arg_dict['external_ip']
+        self._vpn_gw = arg_dict['vpn_gw']
+        self._int_ep = arg_dict['internal_ip']
+        self._username = arg_dict['username']
+        self._password = arg_dict['password']
+        self._realm = arg_dict['realm']
+
+    def run(self):
+
+        result = list()
+
+        #
+        # Stage one
+        #
+        logger1.debug('Running external delay test for {0}'.format(self._description))
+
+        try:
+            result.append(ping_task(self._ext_ep))
+
+        except Exception as e:
+            result.append('ERROR')
+            logger1.critical('Something went bad: {0}'.format(str(e)))
+
+
+        #
+        # Stage two
+        #
+        try:
+            logger1.debug('Running vpn gw delay test for {0}'.format(self._description))
+            before = time.clock()
+
+            startct = pexpect.spawn('startct -s ' + self._vpn_gw + ' -r ' + self._realm + ' -y')
+            startct.expect('Username:')
+            startct.sendline(self._username)
+
+            startct.expect('Password:')
+            startct.sendline(self._password)
+
+            startct.expect('Enter')
+            startct.sendline('1')
+            startct.expect('CONNECT')
+
+            startct.sendline('status')
+            startct.expect('Connected')
+
+            after =  int(round(time.clock() * 1000))
+
+            result.append(round((after - before) * 1000, 3))
+
+
+        except Exception as e:
+            result.append('ERROR')
+            logger1.critical('Something went bad: {0}'.format(str(e)))
+
+        #
+        # Stage three
+        #
+        logger1.debug('Running internal delay test for {0}'.format(self._description))
+
+        try:
+            result.append(ping_task(self._int_ep))
+
+        except Exception as e:
+            result.append('ERROR')
+            logger1.critical('Something went bad: {0}'.format(str(e)))
+
+        #
+        # Closing the vpn
+        #
+
+        try:
+            startct.sendline('quit')
+
+        except Exception as e:
+            pass
+
+        return result
+
+
+class ResultGen:
+    def __init__(self, sites):
+        self._sites = sites
+
+    def __iter__(self):
+        while True:
+
+            clock_before = time.clock()
+
+            for site in self._sites.keys():
+
+                result = dict()
+                result['Time'] = time.asctime()
+                result['CPE Name'] = site
+                result['Summary'] = 'SUCCESS'
+                clock_before = time.clock()
+
+                for i, delay in enumerate(VpnScenario(site, self._sites[site]).run()):
+                    result['Stage ' + str(i+1) + ' in ms'] = delay
+
+                    if not re.match('[0-9\.]+', str(delay)):
+                        result['Summary'] = "FAILURE"
+
+                yield result
+
+
+            clock_after = time.clock()
+            time.sleep(60 - (clock_after - clock_before))
+
 
 class ResultLogger:
     def __init__(self, filename):
         self._date = time.strftime("%y%m%d", time.gmtime())
         self._filename = filename
-        self._fieldnames = ['Time', 'CPE Name', 'Result', 'Stage 1 in ms', 'Stage 2 in ms', 'Stage 3 in ms']
+        self._fieldnames = ['Time', 'CPE Name', 'Summary', 'Stage 1 in ms', 'Stage 2 in ms', 'Stage 3 in ms']
 
     def write_result(self, result_gen):
 
         for result in result_gen:
-            logger1.debug(result)
+            logger1.debug('Stages results: {0}, {1}, {2}'.format(result['Stage 1 in ms'], result['Stage 2 in ms'], result['Stage 3 in ms']))
 
+            # Every day a new result file needs to be created
             if time.strftime("%y%m%d", time.gmtime()) != self._date:
                 self._date = time.strftime("%y%m%d", time.gmtime())
                 logger1.warning('Rotating result file. New file: {0}'.format(self._filename))
@@ -27,6 +176,7 @@ class ResultLogger:
                     csv_write.writeheader()
                     csv_write.writerow(result)
 
+            # If result file doesnt exit, it needs to be created with header
             if not os.path.isfile(self._filename + '_' + self._date + '.csv',):
                 logger1.warning('Creating result file {0}'.format(self._filename + '_' + self._date + '.csv'))
 
@@ -42,26 +192,35 @@ class ResultLogger:
 
 
 def main():
+
     sites = dict()
-    sites['nomad-eu.solvay.com'] = {'external_ip' : '150.251.5.80'}
-    sites['nomad-eu.solvay.com']['username'] = ['']
-    sites['nomad-eu.solvay.com']['password'] = ['']
-    sites['nomad-eu.solvay.com']['internal_ip'] = ['1.1.1.1']
 
-    sites['nomad-as.solvay.com'] = {'external_ip' : '101.231.53.22'}
-    sites['nomad-as.solvay.com']['username'] = ['']
-    sites['nomad-as.solvay.com']['password'] = ['']
-    sites['nomad-as.solvay.com']['internal_ip'] = ['1.1.1.1']
+    logger1.warning('Loading configuration')
 
-    sites['nomad-eu.solvay.com'] = {'external_ip' : '150.251.5.80'}
-    sites['nomad-eu.solvay.com']['username'] = ['']
-    sites['nomad-eu.solvay.com']['password'] = ['']
-    sites['nomad-eu.solvay.com']['internal_ip'] = ['1.1.1.1']
+    with open('config.csv', 'r') as fd:
+        csv_fd = csv.reader(fd,delimiter=',')
+        for i, line in enumerate(csv_fd):
+            if re.match('[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+', line[1]) and \
+                    re.match('[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+', line[2]) and \
+                    re.match('[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+', line[3]):
+                sites[line[0]] = {'external_ip': line[1]}
+                sites[line[0]]['vpn_gw'] = line[2]
+                sites[line[0]]['internal_ip'] = line[3]
+                sites[line[0]]['username'] = line[4]
+                sites[line[0]]['password'] = line[5]
+                sites[line[0]]['realm'] = line[6]
+            else:
+                logger1.debug('Skipping line {0}'.format(i))
 
-    logger1.warning('Start running tasks')
-    ResultLogger('result').write_result(TaskGen(sites))
+    if len(sites.keys()) > 0:
+        logger1.warning('Start running tasks')
+        ResultLogger('result').write_result(ResultGen(sites))
+
+    else:
+        logger1.critical('Empty configuration. Stopping')
+
 
 if __name__ == '__main__':
-    logger1.setLevel(logging.DEBUG)
+    logger1.setLevel(logging.WARNING)
     logging.basicConfig(level=logging.DEBUG, format='=%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     main()
