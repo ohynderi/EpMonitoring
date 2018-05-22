@@ -221,6 +221,6 @@ def main():
 
 
 if __name__ == '__main__':
-    logger1.setLevel(logging.WARNING)
+    logger1.setLevel(logging.DEBUG)
     logging.basicConfig(level=logging.DEBUG, format='=%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     main()
