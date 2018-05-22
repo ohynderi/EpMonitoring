@@ -199,7 +199,7 @@ class ResultLogger:
             # Sending an email if two consecutive failures for a site
             if result['Summary'] != 'SUCCESS':
                 if result['CPE Name'] in self._alert.keys():
-                    self._alert['CPE Name'] += 1
+                    self._alert[result['CPE Name']] += 1
                     if self._alert[result['CPE Name']] >= 2:
                         logger1.warning('{0} consecutive failure for (1}. Sending emails'.format(self._alert['CPE Name'], result['CPE Name']))
                 else:
