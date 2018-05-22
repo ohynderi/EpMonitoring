@@ -13,6 +13,7 @@ def ping_task(ip_ep):
     cmd_output = subprocess.run(["ping", ip_ep, "-c", "5"], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
 
     if re.search('avg.*', cmd_output.stdout.decode('utf-8')):
+        logger1.debug(re.search('avg.*', cmd_output.stdout.decode('utf-8')).group())
         return re.search('avg.*', cmd_output.stdout.decode('utf-8')).group().split('=')[1].split('/')[1]
 
     else:
@@ -40,6 +41,7 @@ class PingScenario(Scenario):
 
         except Exception as e:
             logger1.critical('Something went bad: {0}'.format(str(e)))
+            logger1.exception('Fatal issue while running the icmp test')
             return 'ERROR'
 
 
@@ -68,16 +70,16 @@ class VpnScenario(Scenario):
         except Exception as e:
             result.append('ERROR')
             logger1.critical('Something went bad: {0}'.format(str(e)))
-
+            # logger1.exception('Fatal issue while running the icmp test')
 
         #
         # Stage two
         #
         try:
             logger1.debug('Running vpn gw delay test for {0}'.format(self._description))
-            before = time.clock()
+            before = time.perf_counter()
 
-            startct = pexpect.spawn('startct -s ' + self._vpn_gw + ' -r ' + self._realm + ' -y')
+            startct = pexpect.spawn('startct -s ' + self._vpn_gw + ' -r ' + self._realm + ' -y', timeout=10)
             startct.expect('Username:')
             startct.sendline(self._username)
 
@@ -91,7 +93,7 @@ class VpnScenario(Scenario):
             startct.sendline('status')
             startct.expect('Connected')
 
-            after =  int(round(time.clock() * 1000))
+            after = time.perf_counter()
 
             result.append(round((after - before) * 1000, 3))
 
@@ -99,6 +101,7 @@ class VpnScenario(Scenario):
         except Exception as e:
             result.append('ERROR')
             logger1.critical('Something went bad: {0}'.format(str(e)))
+            #logger1.exception('Fatal issue while running the vpn test')
 
         #
         # Stage three
@@ -111,6 +114,7 @@ class VpnScenario(Scenario):
         except Exception as e:
             result.append('ERROR')
             logger1.critical('Something went bad: {0}'.format(str(e)))
+            #logger1.exception('Fatal issue while running the icmp test')
 
         #
         # Closing the vpn
@@ -120,7 +124,8 @@ class VpnScenario(Scenario):
             startct.sendline('quit')
 
         except Exception as e:
-            pass
+            logger1.critical('Something went bad: {0}'.format(str(e)))
+            #logger1.exception('Fatal issue while closing the vpn')
 
         return result
 
@@ -160,6 +165,7 @@ class ResultLogger:
         self._date = time.strftime("%y%m%d", time.gmtime())
         self._filename = filename
         self._fieldnames = ['Time', 'CPE Name', 'Summary', 'Stage 1 in ms', 'Stage 2 in ms', 'Stage 3 in ms']
+        self._alert = dict()
 
     def write_result(self, result_gen):
 
@@ -189,6 +195,21 @@ class ResultLogger:
                 with open(self._filename + '_' + self._date + '.csv', 'a', newline='') as fd:
                     csv_write = csv.DictWriter(fd, fieldnames=self._fieldnames)
                     csv_write.writerow(result)
+
+            # Sending an email if two consecutive failures for a site
+            if result['Summary'] != 'SUCCESS':
+                if result['CPE Name'] in self._alert.keys():
+                    self._alert['CPE Name'] += 1
+                    if self._alert[result['CPE Name']] >= 2:
+                        logger1.warning('{0} consecutive failure for (1}. Sending emails'.format(self._alert['CPE Name'], result['CPE Name']))
+                else:
+                    self._alert['CPE Name'] = 1
+
+            else:
+                if result['CPE Name'] in self._alert.keys():
+                    self._alert['CPE Name'] = 0
+
+
 
 
 def main():
@@ -221,6 +242,6 @@ def main():
 
 
 if __name__ == '__main__':
-    logger1.setLevel(logging.DEBUG)
-    logging.basicConfig(level=logging.DEBUG, format='=%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    logger1.setLevel(logging.WARNING)
+    logging.basicConfig(level=logging.DEBUG, format='=%(asctime)s - %(name)s - %(levelname)s - %(message)s', filename='monitoring.log')
     main()
