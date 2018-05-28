@@ -201,7 +201,7 @@ class ResultLogger:
                 if result['CPE Name'] in self._alert.keys():
                     self._alert[result['CPE Name']] += 1
                     if self._alert[result['CPE Name']] >= 2:
-                        logger1.warning('{0} consecutive failure for (1}. Sending emails'.format(self._alert['CPE Name'], result['CPE Name']))
+                        logger1.warning('{0} consecutive failure for (1}. Sending emails'.format(self._alert[result['CPE Name']], result['CPE Name']))
                 else:
                     self._alert[result['CPE Name']] = 1
 
