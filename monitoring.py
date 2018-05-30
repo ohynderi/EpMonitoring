@@ -131,8 +131,9 @@ class VpnScenario(Scenario):
 
 
 class ResultGen:
-    def __init__(self, sites):
+    def __init__(self, sites, sleep_time = 600):
         self._sites = sites
+        self._sleep_time = sleep_time
 
     def __iter__(self):
         while True:
@@ -157,7 +158,9 @@ class ResultGen:
 
 
             clock_after = time.clock()
-            time.sleep(60 - (clock_after - clock_before))
+
+            if self._sleep_time - (clock_after - clock_before) > 0:
+                time.sleep(self._sleep_time - (clock_after - clock_before))
 
 
 class ResultLogger:
@@ -201,15 +204,13 @@ class ResultLogger:
                 if result['CPE Name'] in self._alert.keys():
                     self._alert[result['CPE Name']] += 1
                     if self._alert[result['CPE Name']] >= 2:
-                        logger1.warning('{0} consecutive failure for (1}. Sending emails'.format(self._alert[result['CPE Name']], result['CPE Name']))
+                        logger1.warning('{0} consecutive failure for {1}. Sending emails'.format(self._alert[result['CPE Name']], result['CPE Name']))
                 else:
                     self._alert[result['CPE Name']] = 1
 
             else:
                 if result['CPE Name'] in self._alert.keys():
                     self._alert[result['CPE Name']] = 0
-
-
 
 
 def main():
@@ -221,9 +222,12 @@ def main():
     with open('config.csv', 'r') as fd:
         csv_fd = csv.reader(fd,delimiter=',')
         for i, line in enumerate(csv_fd):
+            '''
             if re.match('[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+', line[1]) and \
                     re.match('[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+', line[2]) and \
                     re.match('[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+', line[3]):
+            '''
+            if re.match('[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+', line[1]):
                 sites[line[0]] = {'external_ip': line[1]}
                 sites[line[0]]['vpn_gw'] = line[2]
                 sites[line[0]]['internal_ip'] = line[3]
@@ -235,7 +239,7 @@ def main():
 
     if len(sites.keys()) > 0:
         logger1.warning('Start running tasks')
-        ResultLogger('result').write_result(ResultGen(sites))
+        ResultLogger('result').write_result(ResultGen(sites, 600))
 
     else:
         logger1.critical('Empty configuration. Stopping')
