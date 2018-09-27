@@ -6,8 +6,10 @@ import pexpect
 import csv
 import logging
 import os.path
-logger1 = logging.getLogger("__main__")
-
+import yaml
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 def ping_task(ip_ep):
     cmd_output = subprocess.run(["ping", ip_ep, "-c", "5"], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
@@ -164,11 +166,24 @@ class ResultGen:
 
 
 class ResultLogger:
-    def __init__(self, filename):
+    def __init__(self, config):
         self._date = time.strftime("%y%m%d", time.gmtime())
-        self._filename = filename
+        self._filename = config['file']
+        self._email = config['email']
         self._fieldnames = ['Time', 'CPE Name', 'Summary', 'Stage 1 in ms', 'Stage 2 in ms', 'Stage 3 in ms']
         self._alert = dict()
+
+    def _send_email(self, subject):
+        msg = MIMEMultipart()
+        msg['From'] = self._email['from']
+        msg['To'] = self._email['to']
+        msg['Subject'] = subject
+
+        mail_server = smtplib.SMTP(self._email['server'], 587)
+        mail_server.starttls()
+        mail_server.sendmail(self._email['from'], self._email['to'], msg.as_string())
+        mail_server.quit()
+
 
     def write_result(self, result_gen):
 
@@ -205,6 +220,8 @@ class ResultLogger:
                     self._alert[result['CPE Name']] += 1
                     if self._alert[result['CPE Name']] >= 2:
                         logger1.warning('{0} consecutive failure for {1}. Sending emails'.format(self._alert[result['CPE Name']], result['CPE Name']))
+                        self._send_email('{0} consecutive failure for {1}. Sending emails'.format(self._alert[result['CPE Name']], result['CPE Name']))
+
                 else:
                     self._alert[result['CPE Name']] = 1
 
@@ -215,18 +232,23 @@ class ResultLogger:
 
 def main():
 
-    sites = dict()
+    with open('config.yml', 'r') as yaml_file:
+        logger1.debug('Loading configuration')
+        config = yaml.load(yaml_file)
+        logger1.debug('Configuration loaded')
 
-    logger1.warning('Loading configuration')
+    print(config)
+
+    '''
+    sites = dict()
 
     with open('config.csv', 'r') as fd:
         csv_fd = csv.reader(fd,delimiter=',')
         for i, line in enumerate(csv_fd):
-            '''
             if re.match('[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+', line[1]) and \
                     re.match('[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+', line[2]) and \
                     re.match('[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+', line[3]):
-            '''
+
             if re.match('[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+', line[1]):
                 sites[line[0]] = {'external_ip': line[1]}
                 sites[line[0]]['vpn_gw'] = line[2]
@@ -237,15 +259,20 @@ def main():
             else:
                 logger1.debug('Skipping line {0}'.format(i))
 
-    if len(sites.keys()) > 0:
+        
+    '''
+
+    if len(config['sites'].keys()) > 0:
         logger1.warning('Start running tasks')
-        ResultLogger('result').write_result(ResultGen(sites, 600))
+        ResultLogger(config['logging']).write_result(ResultGen(config['sites'], 600))
 
     else:
         logger1.critical('Empty configuration. Stopping')
 
 
 if __name__ == '__main__':
-    logger1.setLevel(logging.WARNING)
+    logger1 = logging.getLogger("__main__")
     logging.basicConfig(level=logging.DEBUG, format='=%(asctime)s - %(name)s - %(levelname)s - %(message)s', filename='monitoring.log')
+
+
     main()
