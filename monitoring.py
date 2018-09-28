@@ -10,6 +10,8 @@ import yaml
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+import subprocess
+
 
 def ping_task(ip_ep):
     cmd_output = subprocess.run(["ping", ip_ep, "-c", "5"], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
@@ -25,7 +27,6 @@ def ping_task(ip_ep):
 class Scenario(metaclass=ABCMeta):
     def __init__(self, description=''):
         self._description = description
-
 
     @abstractclassmethod
     def run(self):
@@ -72,7 +73,19 @@ class VpnScenario(Scenario):
         except Exception as e:
             result.append('ERROR')
             logger1.critical('Something went bad: {0}'.format(str(e)))
-            # logger1.exception('Fatal issue while running the icmp test')
+
+
+        #
+        # Check if startct is running
+        #
+
+        cmd_output = subprocess.run(['ps', '-elf'], shell=True, stdout=subprocess.PIPE)
+        already_running = re.search('[0-9]*.*startct\n', cmd_output.stdout.decode('utf-8'))
+        if already_running:
+            logger1.critical('Startct client already running: {0}'.format(already_running))
+
+            time.sleep(5)
+
 
         #
         # Stage two
@@ -96,7 +109,6 @@ class VpnScenario(Scenario):
             startct.expect('Connected')
 
             after = time.perf_counter()
-
             result.append(round((after - before) * 1000, 3))
 
 
@@ -116,7 +128,6 @@ class VpnScenario(Scenario):
         except Exception as e:
             result.append('ERROR')
             logger1.critical('Something went bad: {0}'.format(str(e)))
-            #logger1.exception('Fatal issue while running the icmp test')
 
         #
         # Closing the vpn
@@ -127,7 +138,6 @@ class VpnScenario(Scenario):
 
         except Exception as e:
             logger1.critical('Something went bad: {0}'.format(str(e)))
-            #logger1.exception('Fatal issue while closing the vpn')
 
         return result
 
@@ -179,10 +189,13 @@ class ResultLogger:
         msg['To'] = self._email['to']
         msg['Subject'] = subject
 
-        mail_server = smtplib.SMTP(self._email['server'], 587)
-        mail_server.starttls()
-        mail_server.sendmail(self._email['from'], self._email['to'], msg.as_string())
-        mail_server.quit()
+        try:
+            mail_server = smtplib.SMTP(self._email['server'], port=25, timeout=10)
+            mail_server.sendmail(self._email['from'], self._email['to'], msg.as_string())
+            mail_server.quit()
+
+        except Exception as e:
+            logger1.critical('Something went bad when sending an emai: {0}'.format(str(e)))
 
 
     def write_result(self, result_gen):
@@ -237,29 +250,6 @@ def main():
         config = yaml.load(yaml_file)
         logger1.debug('Configuration loaded')
 
-    '''
-    sites = dict()
-
-    with open('config.csv', 'r') as fd:
-        csv_fd = csv.reader(fd,delimiter=',')
-        for i, line in enumerate(csv_fd):
-            if re.match('[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+', line[1]) and \
-                    re.match('[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+', line[2]) and \
-                    re.match('[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+', line[3]):
-
-            if re.match('[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+', line[1]):
-                sites[line[0]] = {'external_ip': line[1]}
-                sites[line[0]]['vpn_gw'] = line[2]
-                sites[line[0]]['internal_ip'] = line[3]
-                sites[line[0]]['username'] = line[4]
-                sites[line[0]]['password'] = line[5]
-                sites[line[0]]['realm'] = line[6]
-            else:
-                logger1.debug('Skipping line {0}'.format(i))
-
-        
-    '''
-
     if len(config['sites'].keys()) > 0:
         logger1.warning('Start running tasks')
         ResultLogger(config['logging']).write_result(ResultGen(config['sites'], 600))
@@ -270,7 +260,7 @@ def main():
 
 if __name__ == '__main__':
     logger1 = logging.getLogger("__main__")
-    logging.basicConfig(level=logging.DEBUG, format='=%(asctime)s - %(name)s - %(levelname)s - %(message)s', filename='monitoring.log')
+    logging.basicConfig(level=logging.WARNING, format='=%(asctime)s - %(name)s - %(levelname)s - %(message)s', filename='monitoring.log')
 
 
     main()
