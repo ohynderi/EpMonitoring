@@ -237,8 +237,6 @@ def main():
         config = yaml.load(yaml_file)
         logger1.debug('Configuration loaded')
 
-    print(config)
-
     '''
     sites = dict()
 
