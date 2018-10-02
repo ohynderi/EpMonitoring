@@ -117,7 +117,7 @@ class VpnScenario(Scenario):
                 psutil.Process(java).kill()
 
         except Exception as e:
-            logger1.critical('Something went bad when killig a process: {0}'.format(str(e)))
+            logger1.critical('Something went bad when killing a process: {0}'.format(str(e)))
 
 
         # Give time time to the system for killing the processes!
