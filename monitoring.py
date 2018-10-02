@@ -10,7 +10,7 @@ import yaml
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-import subprocess
+import psutil
 
 
 def ping_task(ip_ep):
@@ -64,6 +64,7 @@ class VpnScenario(Scenario):
 
         #
         # Stage one
+        # Ping the external ip
         #
         logger1.debug('Running external delay test for {0}'.format(self._description))
 
@@ -76,19 +77,56 @@ class VpnScenario(Scenario):
 
 
         #
-        # Check if startct is running
+        # Check if startct is not running yet
         #
 
-        cmd_output = subprocess.run(['ps', '-elf'], shell=True, stdout=subprocess.PIPE)
-        already_running = re.search('[0-9]*.*startct\n', cmd_output.stdout.decode('utf-8'))
-        if already_running:
-            logger1.critical('Startct client already running: {0}'.format(already_running))
+        pids = psutil.pids()
+        startct = None
+        AvConnect = None
+        java = None
 
-            time.sleep(5)
+        try:
+            for pid in pids:
+                if psutil.Process(pid).name() == 'startct':
+                    startct = pid
+                    logger1.critical('Ps startct with pid {0} was found to be running...'.format(pid))
+
+                if psutil.Process(pid).name() == 'java':
+                    java = pid
+                    logger1.critical('Ps java with pid {0} was found to be running...'.format(pid))
+
+                if psutil.Process(pid).name() == 'AvConnect':
+                    AvConnect = pid
+                    logger1.critical('Ps AvConnect with pid {0} was found to be running...'.format(pid))
+
+        except Exception as e:
+            logger1.critical('Something went bad when reading process details: {0}'.format(str(e)))
+
+
+        try:
+            if startct:
+                logger1.critical('Killing Ps startct with pid {0}'.format(startct))
+                psutil.Process(startct).kill()
+
+            if AvConnect:
+                logger1.critical('Killing Ps AvConnect with pid {0}'.format(AvConnect))
+                psutil.Process(AvConnect).kill()
+
+            if java:
+                logger1.critical('Killing Ps java with pid {0}'.format(java))
+                psutil.Process(java).kill()
+
+        except Exception as e:
+            logger1.critical('Something went bad when killig a process: {0}'.format(str(e)))
+
+
+        # Give time time to the system for killing the processes!
+        time.sleep(5)
 
 
         #
         # Stage two
+        # Setting up the vpn
         #
         try:
             logger1.debug('Running vpn gw delay test for {0}'.format(self._description))
@@ -115,10 +153,10 @@ class VpnScenario(Scenario):
         except Exception as e:
             result.append('ERROR')
             logger1.critical('Something went bad: {0}'.format(str(e)))
-            #logger1.exception('Fatal issue while running the vpn test')
 
         #
         # Stage three
+        # Pinging the external ip
         #
         logger1.debug('Running internal delay test for {0}'.format(self._description))
 
@@ -195,7 +233,7 @@ class ResultLogger:
             mail_server.quit()
 
         except Exception as e:
-            logger1.critical('Something went bad when sending an emai: {0}'.format(str(e)))
+            logger1.critical('Something went bad when sending an email: {0}'.format(str(e)))
 
 
     def write_result(self, result_gen):
