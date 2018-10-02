@@ -104,25 +104,27 @@ class VpnScenario(Scenario):
 
 
         try:
-            if startct:
+            if startct and psutil.pid_exists(startct):
                 logger1.critical('Killing Ps startct with pid {0}'.format(startct))
                 psutil.Process(startct).kill()
+                time.sleep(1)
 
-            if AvConnect:
+            if AvConnect and psutil.pid_exists(AvConnect):
                 logger1.critical('Killing Ps AvConnect with pid {0}'.format(AvConnect))
                 psutil.Process(AvConnect).kill()
+                time.sleep(1)
 
-            if java:
+            if java and psutil.pid_exists(java):
                 logger1.critical('Killing Ps java with pid {0}'.format(java))
                 psutil.Process(java).kill()
+                time.sleep(1)
 
         except Exception as e:
             logger1.critical('Something went bad when killing a process: {0}'.format(str(e)))
 
 
-        # Give time time to the system for killing the processes!
+        # Give time time to the system and the vpn gw for killing / closing the ssl connection...
         time.sleep(5)
-
 
         #
         # Stage two
@@ -216,7 +218,7 @@ class ResultGen:
 class ResultLogger:
     def __init__(self, config):
         self._date = time.strftime("%y%m%d", time.gmtime())
-        self._filename = config['file']
+        self._filename = config['dir'] + '/' + config['file']
         self._email = config['email']
         self._fieldnames = ['Time', 'CPE Name', 'Summary', 'Stage 1 in ms', 'Stage 2 in ms', 'Stage 3 in ms']
         self._alert = dict()
