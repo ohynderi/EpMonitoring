@@ -230,8 +230,12 @@ class ResultLogger:
         msg['Subject'] = subject
 
         try:
-            mail_server = smtplib.SMTP(self._email['server'], port=25, timeout=10)
-            mail_server.sendmail(self._email['from'], self._email['to'], msg.as_string())
+            mail_server = smtplib.SMTP(self._email['server'] + ':25', timeout=10)
+            mail_server.set_debuglevel(1)
+            retcode = mail_server.ehlo()
+            logger1.warning(retcode)
+            retcode = mail_server.sendmail(self._email['from'], self._email['to'], msg.as_string())
+            logger1.warning(retcode)
             mail_server.quit()
 
         except Exception as e:
