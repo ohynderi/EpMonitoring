@@ -124,7 +124,7 @@ class VpnScenario(Scenario):
 
 
         # Give time time to the system and the vpn gw for killing / closing the ssl connection...
-        time.sleep(5)
+        time.sleep(10)
 
         #
         # Stage two
@@ -134,7 +134,7 @@ class VpnScenario(Scenario):
             logger1.debug('Running vpn gw delay test for {0}'.format(self._description))
             before = time.perf_counter()
 
-            startct = pexpect.spawn('startct -s ' + self._vpn_gw + ' -r ' + self._realm + ' -y', timeout=10)
+            startct = pexpect.spawn('startct -s ' + self._vpn_gw + ' -r ' + self._realm + ' -y', timeout=60)
             startct.expect('Username:')
             startct.sendline(self._username)
 
