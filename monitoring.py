@@ -138,6 +138,7 @@ class VpnScenario(Scenario):
 
     def run(self):
 
+        global startct
         result = list()
 
         #
@@ -151,7 +152,7 @@ class VpnScenario(Scenario):
 
         except Exception as e:
             result.append('ERROR')
-            logger1.critical('Something went bad: {0}'.format(str(e)))
+            logger1.critical('Something went bad when writing the results: {0}'.format(str(e)))
 
 
         #
@@ -185,7 +186,7 @@ class VpnScenario(Scenario):
 
         except Exception as e:
             result.append('ERROR')
-            logger1.critical('Something went bad: {0}'.format(str(e)))
+            logger1.critical('Something went bad when connecting: {0}'.format(str(e)))
 
         #
         # Stage three
@@ -208,7 +209,7 @@ class VpnScenario(Scenario):
             startct.sendline('quit')
 
         except Exception as e:
-            logger1.critical('Something went bad: {0}'.format(str(e)))
+            logger1.critical('Something went bad when closing the vpn: {0}'.format(str(e)))
 
         return result
 
