@@ -117,19 +117,23 @@ class VpnScenario(Scenario):
 
     def _check_dns(self):
 
-        with open('/etc/resolv.conf', 'r') as fd:
-            for line in fd:
-                if re.search('SonicWall', line):
-                    logger1.critical('Invalid DNS settings. Forcing refresh')
+        try:
+            with open('/etc/resolv.conf', 'r') as fd:
+                for line in fd:
+                    if re.search('SonicWall', line):
+                        logger1.critical('Invalid DNS settings. Forcing refresh')
 
-                    '''
-                    This script assumes 'resolvconf' can be run without being asked for password.
-                    Hence, make sure to add 'sslvpn  ALL=(ALL) NOPASSWD: /sbin/resolvconf' to /etc/sudoers
-                    '''
+                        '''
+                        This script assumes 'resolvconf' can be run without being asked for password.
+                        Hence, make sure to add 'sslvpn  ALL=(ALL) NOPASSWD: /sbin/resolvconf' to /etc/sudoers
+                        '''
 
-                    os.system('sudo resolvconf -u')
-                    time.sleep(10)
-                    break
+                        os.system('sudo resolvconf -u')
+                        time.sleep(10)
+                        break
+
+        except Exception as e:
+            logger1.critical('Something went bad when checking the dns settings: {0}'.format(str(e)))
 
 
     def run(self):
