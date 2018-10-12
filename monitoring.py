@@ -58,7 +58,7 @@ class VpnScenario(Scenario):
         self._username = arg_dict['username']
         self._password = arg_dict['password']
         self._realm = arg_dict['realm']
-        self._timeout = arg_dict['timeout']
+        self._timeout = str(arg_dict['timeout'])
 
 
     def _check_proc_running(self):
@@ -138,7 +138,7 @@ class VpnScenario(Scenario):
 
     def run(self):
 
-        global startct
+        startct = None
         result = list()
 
         #
