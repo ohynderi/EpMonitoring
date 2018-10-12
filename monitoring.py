@@ -6,6 +6,7 @@ import pexpect
 import csv
 import logging
 import os.path
+import os
 import yaml
 import smtplib
 from email.mime.text import MIMEText
@@ -57,24 +58,10 @@ class VpnScenario(Scenario):
         self._username = arg_dict['username']
         self._password = arg_dict['password']
         self._realm = arg_dict['realm']
+        self._timeout = arg_dict['timeout']
 
-    def run(self):
 
-        result = list()
-
-        #
-        # Stage one
-        # Ping the external ip
-        #
-        logger1.debug('Running external delay test for {0}'.format(self._description))
-
-        try:
-            result.append(ping_task(self._ext_ep))
-
-        except Exception as e:
-            result.append('ERROR')
-            logger1.critical('Something went bad: {0}'.format(str(e)))
-
+    def _check_proc_running(self):
 
         #
         # Check if startct is not running yet
@@ -124,17 +111,57 @@ class VpnScenario(Scenario):
 
 
         # Give time time to the system and the vpn gw for killing / closing the ssl connection...
-        time.sleep(10)
+        if startct or AvConnect or java:
+            time.sleep(10)
+
+
+    def _check_dns(self):
+
+        with open('/etc/resolv.conf', 'r') as fd:
+            for line in fd:
+                if re.search('SonicWall', line):
+                    logger1.critical('Invalid DNS settings. Forcing refresh')
+
+                    '''
+                    This script assumes 'resolvconf' can be run without being asked for password.
+                    Hence, make sure to add 'sslvpn  ALL=(ALL) NOPASSWD: /sbin/resolvconf' to /etc/sudoers
+                    '''
+
+                    os.system('sudo resolvconf -u')
+                    time.sleep(10)
+                    break
+
+
+    def run(self):
+
+        result = list()
+
+        #
+        # Stage one
+        # Ping the external ip
+        #
+        logger1.debug('Running external delay test for {0}'.format(self._description))
+
+        try:
+            result.append(ping_task(self._ext_ep))
+
+        except Exception as e:
+            result.append('ERROR')
+            logger1.critical('Something went bad: {0}'.format(str(e)))
+
 
         #
         # Stage two
         # Setting up the vpn
         #
+        self._check_proc_running()
+        self._check_dns()
+
         try:
             logger1.debug('Running vpn gw delay test for {0}'.format(self._description))
             before = time.perf_counter()
 
-            startct = pexpect.spawn('startct -s ' + self._vpn_gw + ' -r ' + self._realm + ' -y', timeout=60)
+            startct = pexpect.spawn('startct -s ' + self._vpn_gw + ' -r ' + self._realm + ' -y', self._timeout)
             startct.expect('Username:')
             startct.sendline(self._username)
 
@@ -277,7 +304,7 @@ class ResultLogger:
                     self._alert[result['CPE Name']] += 1
                     if self._alert[result['CPE Name']] >= 2:
                         logger1.warning('{0} consecutive failure for {1}. Sending emails'.format(self._alert[result['CPE Name']], result['CPE Name']))
-                        self._send_email('{0} consecutive failure for {1}. Sending emails'.format(self._alert[result['CPE Name']], result['CPE Name']))
+                        self._send_email('{0} consecutive failure for {1}.'.format(self._alert[result['CPE Name']], result['CPE Name']))
 
                 else:
                     self._alert[result['CPE Name']] = 1
