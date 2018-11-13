@@ -340,7 +340,7 @@ if __name__ == '__main__':
 
     logger1.setLevel(logging.DEBUG)
     log_formatter1 = logging.Formatter('=%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    log_handler1 = logging.handlers.RotatingFileHandler('monitoring.log', maxBytes=500, backupCount=10)
+    log_handler1 = logging.handlers.RotatingFileHandler('monitoring.log', maxBytes=5000000, backupCount=10)
     log_handler1.setFormatter(log_formatter1)
     logger1.addHandler(log_handler1)
 
