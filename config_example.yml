@@ -1,0 +1,35 @@
+---
+frequency: 600
+logging:
+  file: result
+  dir: result
+  email:
+    server: <mail_server_ip_addr>
+    from: <src_email_addr>
+    to: <dst_email_addr>
+sites:
+  <site1_name>:
+    external_ip: <ip_to_ping_prior_setting_up_vpn>
+    vpn_gw: <site1_vpn_gw>
+    internal_ip: <ip_to_ping_once_vpn_is_setup>
+    username: <username>
+    password: <password>
+    realm: <realm>
+    timeout: 60
+  <site2_name>:
+    external_ip: <ip_to_ping_prior_setting_up_vpn>
+    vpn_gw: <site2_vpn_gw>
+    internal_ip: <ip_to_ping_once_vpn_is_setup>
+    username: <username>
+    password: <password>
+    realm: <realm>
+    timeout: 60
+  <site3_name>:
+    external_ip: <ip_to_ping_prior_setting_up_vpn>
+    vpn_gw: <site3_vpn_gw>
+    internal_ip: <ip_to_ping_once_vpn_is_setup>
+    username: <username>
+    password: <password>
+    realm: <realm>
+    timeout: 60
+...
