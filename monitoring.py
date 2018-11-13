@@ -329,7 +329,7 @@ def main():
 
     if len(config['sites'].keys()) > 0:
         logger1.warning('Start running tasks')
-        ResultLogger(config['logging']).write_result(ResultGen(config['sites'], 600))
+        ResultLogger(config['logging']).write_result(ResultGen(config['sites'], config['frequency']))
 
     else:
         logger1.critical('Empty configuration. Stopping')
