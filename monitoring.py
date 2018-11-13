@@ -5,6 +5,7 @@ import time
 import pexpect
 import csv
 import logging
+import logging.handlers
 import os.path
 import os
 import yaml
@@ -177,8 +178,8 @@ class VpnScenario(Scenario):
             startct.sendline('1')
             startct.expect('CONNECT')
 
-            startct.sendline('status')
-            startct.expect('Connected')
+            # startct.sendline('status')
+            # startct.expect('Connected')
 
             after = time.perf_counter()
             result.append(round((after - before) * 1000, 3))
@@ -336,7 +337,14 @@ def main():
 
 if __name__ == '__main__':
     logger1 = logging.getLogger("__main__")
-    logging.basicConfig(level=logging.WARNING, format='=%(asctime)s - %(name)s - %(levelname)s - %(message)s', filename='monitoring.log')
+
+    logger1.setLevel(logging.DEBUG)
+    log_formatter1 = logging.Formatter('=%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    log_handler1 = logging.handlers.RotatingFileHandler('monitoring.log', maxBytes=500, backupCount=10)
+    log_handler1.setFormatter(log_formatter1)
+    logger1.addHandler(log_handler1)
+
+    #logging.basicConfig(level=logging.WARNING, format='=%(asctime)s - %(name)s - %(levelname)s - %(message)s', filename='monitoring.log')
 
 
     main()
