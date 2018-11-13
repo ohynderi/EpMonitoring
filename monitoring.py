@@ -167,7 +167,7 @@ class VpnScenario(Scenario):
             logger1.debug('Running vpn gw delay test for {0}'.format(self._description))
             before = time.perf_counter()
 
-            startct = pexpect.spawn('startct -s ' + self._vpn_gw + ' -r ' + self._realm + ' -y' + self._timeout)
+            startct = pexpect.spawn('startct -s ' + self._vpn_gw + ' -r ' + self._realm + ' -y ' + self._timeout)
             startct.expect('Username:')
             startct.sendline(self._username)
 
