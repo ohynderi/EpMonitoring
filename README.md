@@ -6,6 +6,7 @@ The purpose of the EpMonitoring.py script is to monitor the availabilities of VP
 The script relies on the Python pexpect module to launch ping or startct commands. Hence it must run in a UNIX environment to run.
 
 
+
 ## config.yml
 
 The script takes its configuration from the config.yml file (YaML format) which needs to be in the same directory. 
@@ -16,6 +17,7 @@ The configuration file comes with 3 sections:
 * sites: details of the sites (hosting the VPN Concentrators) to be tested.
 * frequency: how often (in sec) do we test the sites
 
+
 ## Site Monitoring
 
 The sites section lists the sites to be tested. At every <frequency>, the script tests all the sites, one after the other. So the time required to test all sites should be less than the frequency…
@@ -25,10 +27,12 @@ Each site are tested as following:
 3. Ping the internal ip resource (internal_ip), avg RTT taken as result.
 4. Tear down the SSL connection.
 
+
 ## Result 
 
 Site results are store in a result CSV file that rotates every days. So every day a new result file is created.
 If, for a site, one step failed, the site is considered as failed. If a site has been marked as failed twice in a row, a notification is sent via email.
+
 
 ## Error handling
 The script handles following two issues:
