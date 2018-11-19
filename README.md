@@ -1,9 +1,9 @@
 # VPN GW Monitoring 
 ## Overview
 
-The purpose of the EpMonitoring.py script is to monitor the availabilities of VPN Gateways using the Sonicwall Connect Tunnel SSL VPN client.
+The purpose of the EpMonitoring.py script is to monitor the availabilities of VPN Gateways using the Sonicwall Connect Tunnel SSL VPN client in CLI mode.
 
-The script relies on the Python pexpect module to launch ping or startct commands. Hence it must run in a UNIX environment to run.
+The script relies on the Python pexpect module to launch ping or startct commands. Hence it must run in a UNIX environment and require the Sonicwall Connect Tunnel client to be pre-installed.
 
 
 
@@ -13,25 +13,49 @@ The script takes its configuration from the config.yml file (YaML format) which 
 
 The configuration file comes with 3 sections:
 
-* logging: SMTP details to email notifications
-* sites: details of the sites (hosting the VPN Concentrators) to be tested.
-* frequency: how often (in sec) do we test the sites
+* logging: SMTP details for email notifications
+* sites: details of the sites (hosting the VPN Concentrators) to be monitored.
+* frequency: how often (in sec) are sites monitored
+
+See file example_config.yml for more details.
 
 
 ## Site Monitoring
 
-The sites section lists the sites to be tested. At every <frequency>, the script tests all the sites, one after the other. So the time required to test all sites should be less than the frequency…
+The sites section lists the sites to be monitored. 
+At every <frequency>, the script tests all the sites, one after the other. So the time required to test all sites should be less than the frequency…
+  
 Each site are tested as following:
 1. Ping the external ip resource (external_ip), avg RTT taken as result.
 2. Setup an SSL connection to the site VPN GW, time to login taken as a result
 3. Ping the internal ip resource (internal_ip), avg RTT taken as result.
 4. Tear down the SSL connection.
 
+It is recommended not to perform any type of host integrity / compliancy checking for the test user.
+
 
 ## Result 
 
-Site results are store in a result CSV file that rotates every days. So every day a new result file is created.
-If, for a site, one step failed, the site is considered as failed. If a site has been marked as failed twice in a row, a notification is sent via email.
+Site results are stored in below format into a CSV file, located in the result directory. 
+
+> Time,CPE Name,Summary,Stage 1 in ms,Stage 2 in ms,Stage 3 in ms  
+> Wed Nov 14 00:03:40 2018,site1,SUCCESS,5.213,10529.671,436.733  
+> Wed Nov 14 00:03:40 2018,site2,SUCCESS,5.213,10529.671,436.733  
+> Wed Nov 14 00:03:59 2018,site3,SUCCESS,4.918,5518.176,148.335  
+> Wed Nov 14 00:04:13 2018,site1,SUCCESS,4.963,3339.573,16.167  
+> Wed Nov 14 00:14:25 2018,site2,SUCCESS,4.989,10519.918,446.857  
+> ...
+
+Result are being rotated every days. So one result file per day.
+
+If, for a site, one step fails (see the site monitoring section), the site is considered as failed. A notification is sent via email when a site has failed twice in a row.
+
+
+## Script Logging
+
+
+
+
 
 
 ## Error handling
