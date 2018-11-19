@@ -344,7 +344,4 @@ if __name__ == '__main__':
     log_handler1.setFormatter(log_formatter1)
     logger1.addHandler(log_handler1)
 
-    #logging.basicConfig(level=logging.WARNING, format='=%(asctime)s - %(name)s - %(levelname)s - %(message)s', filename='monitoring.log')
-
-
     main()
