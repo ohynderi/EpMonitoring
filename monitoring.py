@@ -283,7 +283,7 @@ class ResultLogger:
             # Every day a new result file needs to be created
             if time.strftime("%y%m%d", time.gmtime()) != self._date:
                 self._date = time.strftime("%y%m%d", time.gmtime())
-                logger1.warning('Rotating result file. New file: {0}'.format(self._filename))
+                logger1.warning('Rotating result file. New file: {0}'.format(self._filename + '_' + self._date + '.csv'))
 
                 with open(self._filename + '_' + self._date + '.csv', 'a', newline='') as fd:
                     csv_write = csv.DictWriter(fd, fieldnames=self._fieldnames)
