@@ -116,7 +116,7 @@ The logging file rotates automatically after reaching 5MB. Up to 10 files are ke
 The script handles following two issues:
 1. It was noticed that the SSL client doesnt always close properly. 
 When this happens, the processes started by the startct commands keep running, preventing any new connection and hence subsequent tests to fail… 
-To work around this, prior testing a site, the script checks if the SSL client is still running and kill when it does. When this happens, following is being logged
+To work around this, prior testing a site, the script checks if the SSL client is still running and kill when it does. When this happens, following is being logged:
 
 ```
 =2018-11-14 05:18:59,316 - __main__ - CRITICAL - Ps java with pid 52877 was found to be running...
@@ -126,4 +126,10 @@ To work around this, prior testing a site, the script checks if the SSL client i
 ```
 
 2. It was noticed that after closing the SSL client, the DNS setting (/etc/resolv.conf file) are not always restored to default causing subsequent tests to fail. 
-To work around this, before testing a site, the script checks the content of the /etc/resolv.conf. If still modified by the previous execution of the startct command, it runs the “resolvconf –u” command. This requires that “sudo resolvconf –u” can be run without being asked for password.
+To work around this, before testing a site, the script checks the content of the /etc/resolv.conf. If still modified by the previous execution of the startct command, it runs the “resolvconf –u” command. When this happens, following is being logged:
+
+```
+=2018-11-13 22:03:18,715 - __main__ - CRITICAL - Invalid DNS settings. Forcing refresh
+```
+
+This requires that “sudo resolvconf –u” can be ran without being asked for password. This requires that “sudo resolvconf –u” can be ran without being asked for password. For this, suggestion is to add '*sslvpn*  ALL=(ALL) NOPASSWD: /sbin/resolvconf' to /etc/sudoers. Sslvpn being the user under which runs the script.
